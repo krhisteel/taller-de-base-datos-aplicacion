@@ -6,11 +6,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import cl.duoc.smcft.core.db.ArchivoJson
 import cl.duoc.smcft.core.db.BaseDatos
+import cl.duoc.smcft.core.db.SmcftException
 import cl.duoc.smcft.core.db.Tablas
 import cl.duoc.smcft.core.repo.Datos
 import cl.duoc.smcft.core.repo.RepositorioLocal
 import cl.duoc.smcft.core.repo.RepositorioOracle
 import cl.duoc.smcft.core.repo.SmcftRepositorio
+import cl.duoc.smcft.core.seguridad.Sesion
+import cl.duoc.smcft.core.seguridad.TipoUsuario
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,11 +61,74 @@ class SmcftViewModel(app: Application) : AndroidViewModel(app) {
     private val _mensajes = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val mensajes: SharedFlow<String> = _mensajes
 
+    private val _sesion = MutableStateFlow(leerSesion())
+    /** Usuario conectado; null muestra la pantalla de inicio de sesión. */
+    val sesion: StateFlow<Sesion?> = _sesion.asStateFlow()
+
     @Volatile
     private var repo: SmcftRepositorio? = null
 
     init {
-        recargar()
+        if (_sesion.value != null) recargar() else _estado.value = EstadoUi()
+    }
+
+    // ---------------------------------------------------------------- sesión
+
+    /** Valida las credenciales en el repositorio activo (demostración u Oracle). */
+    fun iniciarSesion(email: String, clave: String, alTerminar: (String?) -> Unit) {
+        viewModelScope.launch {
+            val error = try {
+                val r = repositorio()
+                val sesion = withContext(Dispatchers.IO) { r.iniciarSesion(email, clave) }
+                guardarSesion(sesion)
+                _sesion.value = sesion
+                recargar()
+                null
+            } catch (e: SmcftException) {
+                when (e.codigo) {
+                    -20031 -> "Correo o contraseña incorrectos."
+                    -20032 -> "Su usuario está desactivado. Contacte al administrador."
+                    else -> mensaje(e)
+                }
+            } catch (e: Exception) {
+                mensaje(e)
+            }
+            alTerminar(error)
+        }
+    }
+
+    fun cerrarSesion() {
+        guardarSesion(null)
+        _sesion.value = null
+        _estado.value = EstadoUi()
+    }
+
+    /** Correo del último usuario que inició sesión (para completar el formulario). */
+    val ultimoCorreo: String get() = prefs.getString("ultimoCorreo", "").orEmpty()
+
+    private fun guardarSesion(s: Sesion?) {
+        val e = prefs.edit()
+        if (s == null) {
+            e.putLong("sesion.id", -1)
+        } else {
+            e.putLong("sesion.id", s.idUsuario)
+                .putString("sesion.nombre", s.nombre)
+                .putString("sesion.email", s.email)
+                .putString("sesion.rol", s.tipo.codigo)
+                .putString("ultimoCorreo", s.email)
+        }
+        e.apply()
+    }
+
+    private fun leerSesion(): Sesion? {
+        val id = prefs.getLong("sesion.id", -1)
+        if (id < 0) return null
+        return Sesion(
+            idUsuario = id,
+            nombre = prefs.getString("sesion.nombre", "").orEmpty(),
+            email = prefs.getString("sesion.email", "").orEmpty(),
+            tipo = TipoUsuario.desdeCodigo(prefs.getString("sesion.rol", null)),
+        )
     }
 
     private suspend fun repositorio(): SmcftRepositorio = withContext(Dispatchers.IO) {
@@ -137,11 +203,17 @@ class SmcftViewModel(app: Application) : AndroidViewModel(app) {
             .putString("clientSecret", a.clientSecret.trim())
             .putLong("idUsuario", a.idUsuarioReportes)
             .apply()
+        val cambioServidor = a.modo != _ajustes.value.modo || a.urlOrds.trim() != _ajustes.value.urlOrds
         _ajustes.value = a
         repo = null
-        _estado.value = EstadoUi(cargando = true)
-        _mensajes.tryEmit(if (a.modo == Modo.ORACLE) "Conectando con Oracle…" else "Modo demostración activado")
-        recargar()
+        _mensajes.tryEmit(if (a.modo == Modo.ORACLE) "Conexión con Oracle guardada" else "Modo demostración activado")
+        if (cambioServidor) {
+            // Las cuentas pertenecen a cada servidor: hay que volver a iniciar sesión.
+            cerrarSesion()
+        } else if (_sesion.value != null) {
+            _estado.value = EstadoUi(cargando = true)
+            recargar()
+        }
     }
 
     /** Borra los datos de demostración y vuelve a cargar los del informe. */
@@ -150,7 +222,7 @@ class SmcftViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) { archivoDemo.delete() }
             if (_ajustes.value.modo == Modo.DEMO) repo = null
             _mensajes.emit("Datos de demostración reiniciados")
-            recargar()
+            cerrarSesion()
         }
     }
 
@@ -162,5 +234,9 @@ class SmcftViewModel(app: Application) : AndroidViewModel(app) {
         idUsuarioReportes = prefs.getLong("idUsuario", 1),
     )
 
-    private fun mensaje(e: Throwable): String = e.message ?: e.javaClass.simpleName
+    /** Texto para el usuario: sin el prefijo técnico cuando es un error de negocio conocido. */
+    private fun mensaje(e: Throwable): String = when (e) {
+        is SmcftException -> "${e.detalle} (ORA${e.codigo})"
+        else -> e.message ?: e.javaClass.simpleName
+    }
 }

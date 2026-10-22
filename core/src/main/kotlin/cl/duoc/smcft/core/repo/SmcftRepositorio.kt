@@ -1,5 +1,6 @@
 package cl.duoc.smcft.core.repo
 
+import cl.duoc.smcft.core.seguridad.Sesion
 import java.time.LocalDate
 
 /**
@@ -16,6 +17,20 @@ import java.time.LocalDate
  * Los métodos bloquean el hilo: la app los llama fuera del hilo principal.
  */
 interface SmcftRepositorio {
+
+    // ---------------------------------------------------------------- sesión
+
+    /**
+     * Valida el correo y la contraseña contra USUARIO y registra el intento en LOGIN_ATTEMPT.
+     * Lanza SmcftException -20031 si las credenciales no son válidas y -20032 si el usuario está inactivo.
+     */
+    fun iniciarSesion(email: String, clave: String): Sesion
+
+    /** Usuarios con su rol y su último acceso exitoso (solo administración). */
+    fun usuarios(): List<UsuarioInfo>
+
+    /** Últimos intentos de inicio de sesión (solo administración). */
+    fun accesos(): List<AccesoInfo>
 
     // ---------------------------------------------------------------- consultas
 

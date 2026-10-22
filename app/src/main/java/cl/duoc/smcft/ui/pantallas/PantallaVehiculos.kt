@@ -42,7 +42,9 @@ import cl.duoc.smcft.SmcftViewModel
 import cl.duoc.smcft.core.repo.Datos
 import cl.duoc.smcft.core.repo.NuevoVehiculo
 import cl.duoc.smcft.core.repo.VehiculoInfo
+import cl.duoc.smcft.core.seguridad.Permiso
 import cl.duoc.smcft.ui.coloresEstado
+import cl.duoc.smcft.ui.puede
 import cl.duoc.smcft.ui.componentes.BarraBusqueda
 import cl.duoc.smcft.ui.componentes.BotonPrincipal
 import cl.duoc.smcft.ui.componentes.Campo
@@ -71,12 +73,16 @@ fun PantallaVehiculos(vm: SmcftViewModel, datos: Datos) {
             if (lista.isEmpty()) item { EstadoVacio(Icons.Outlined.SearchOff, "Sin vehículos", "No hay vehículos que coincidan con la búsqueda.") }
             items(lista, key = { it.idVehiculo }) { v -> FilaVehiculo(v, datos) }
         }
-        ExtendedFloatingActionButton(
-            onClick = { nuevo = true },
-            icon = { Icon(Icons.Outlined.Add, null) },
-            text = { Text("Nuevo vehículo") },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-        )
+        if (puede(Permiso.GESTIONAR_VEHICULOS)) {
+            ExtendedFloatingActionButton(
+                onClick = { nuevo = true },
+                icon = { Icon(Icons.Outlined.Add, null) },
+                text = { Text("Nuevo vehículo") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            )
+        }
     }
     if (nuevo) NuevoVehiculoHoja(vm, datos) { nuevo = false }
 }

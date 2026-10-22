@@ -111,6 +111,25 @@ data class AuditoriaInfo(
     val detalles: List<AuditoriaDetalleInfo>,
 )
 
+data class UsuarioInfo(
+    val idUsuario: Long,
+    val nombre: String,
+    val email: String,
+    /** NOMBRE_ROL (ver [cl.duoc.smcft.core.seguridad.TipoUsuario]). */
+    val rol: String,
+    val activo: Boolean,
+    val ultimoAcceso: LocalDateTime?,
+)
+
+/** Fila de LOGIN_ATTEMPT. */
+data class AccesoInfo(
+    val idIntento: Long,
+    val email: String?,
+    val nombre: String?,
+    val exitoso: Boolean,
+    val fecha: LocalDateTime,
+)
+
 data class NuevaPersona(
     val rut: String,
     val nombres: String,

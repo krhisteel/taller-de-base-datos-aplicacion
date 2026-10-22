@@ -13,6 +13,7 @@ Scripts del informe EP2 corregidos y ordenados. Se probaron en Oracle Database 2
 | 5 | `funciones/*.sql` | `FN_VALOR_DECLARADO`, `FN_TOTAL_PLAZOS_VENCIDOS` |
 | 6 | `triggers/*.sql` | `TRG_CRUCE_PLAZO_AI`, `TRG_DOCUMENTO_AUDIT`, `TRG_DOCUMENTO_SENTENCIA` |
 | 7 | `03_datos_prueba.sql` | Datos base (usuario técnico 1, pasos, vehículos…) y sincronización de secuencias |
+| 8 | `04_usuarios_roles.sql` | Roles, cuentas de la app y procedimiento `SP_INICIAR_SESION` (inicio de sesión con LOGIN_ATTEMPT) |
 
 `instalar.sql` ejecuta todo en ese orden. En SQL Developer, abra el archivo desde esta carpeta y ejecútelo como script (F5).
 

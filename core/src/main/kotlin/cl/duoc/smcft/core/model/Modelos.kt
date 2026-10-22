@@ -30,6 +30,24 @@ data class Usuario(
     val idPersona: Long,
     val email: String,
     val activo: Boolean = true,
+    /** SHA-256 de la contraseña (ver [cl.duoc.smcft.core.seguridad.Seguridad.hash]). */
+    val passwordHash: String = "",
+)
+
+@Serializable
+data class Rol(val idRol: Long, val nombreRol: String)
+
+@Serializable
+data class UsuarioRol(val idUsuarioRol: Long, val idUsuario: Long, val idRol: Long, val activo: Boolean = true)
+
+/** LOGIN_ATTEMPT: cada intento de inicio de sesión, exitoso o no. */
+@Serializable
+data class IntentoLogin(
+    val idIntento: Long,
+    val idUsuario: Long?,
+    val exitoso: Boolean,
+    val ipAddress: String?,
+    val fechaIntento: LocalDateTime,
 )
 
 @Serializable

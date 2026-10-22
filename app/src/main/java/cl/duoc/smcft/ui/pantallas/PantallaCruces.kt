@@ -55,7 +55,9 @@ import cl.duoc.smcft.core.repo.CruceInfo
 import cl.duoc.smcft.core.repo.Datos
 import cl.duoc.smcft.core.repo.ItemInfo
 import cl.duoc.smcft.core.repo.ViajeroInfo
+import cl.duoc.smcft.core.seguridad.Permiso
 import cl.duoc.smcft.ui.Navegacion
+import cl.duoc.smcft.ui.puede
 import cl.duoc.smcft.ui.Sub
 import cl.duoc.smcft.ui.coloresEstado
 import cl.duoc.smcft.ui.componentes.Avatar
@@ -105,7 +107,7 @@ fun PantallaCruces(vm: SmcftViewModel, datos: Datos, nav: Navegacion) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     BarraBusqueda(busqueda, { busqueda = it }, "Buscar por paso, patente o N° de cruce")
                     Filtros(FiltroCruce.entries, filtro, { it.texto }, { filtro = it })
-                    Texto2("${lista.size} de ${datos.cruces.size} cruces · toque uno para ver el detalle")
+                    Texto2("${lista.size} de ${datos.cruces.size} cruces · toque uno para ver su detalle")
                 }
             }
             if (lista.isEmpty()) {
@@ -122,12 +124,16 @@ fun PantallaCruces(vm: SmcftViewModel, datos: Datos, nav: Navegacion) {
             }
         }
 
-        ExtendedFloatingActionButton(
-            onClick = { nav.abrir(Sub.NUEVO_CRUCE) },
-            icon = { Icon(Icons.Outlined.Add, null) },
-            text = { Text("Nuevo cruce") },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-        )
+        if (puede(Permiso.REGISTRAR_CRUCE)) {
+            ExtendedFloatingActionButton(
+                onClick = { nav.abrir(Sub.NUEVO_CRUCE) },
+                icon = { Icon(Icons.Outlined.Add, null) },
+                text = { Text("Nuevo cruce") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            )
+        }
     }
 
     seleccionado?.let { cruce ->
@@ -182,7 +188,7 @@ private fun DetalleCruce(vm: SmcftViewModel, datos: Datos, cruce: CruceInfo, alC
                 } else {
                     FilaDato(Icons.Outlined.DirectionsWalk, "Tipo de cruce", "Peatonal")
                 }
-                FilaDato(Icons.Outlined.AttachMoney, "Valor declarado (FN_VALOR_DECLARADO)", usd(cruce.valorDeclarado))
+                FilaDato(Icons.Outlined.AttachMoney, "Valor declarado", usd(cruce.valorDeclarado))
             }
 
             Text("Viajeros", style = MaterialTheme.typography.titleMedium)
@@ -231,14 +237,22 @@ private fun DetalleCruce(vm: SmcftViewModel, datos: Datos, cruce: CruceInfo, alC
                 }
             }
 
-            NuevoItem(vm, datos, cruce.idCruce) { version++ }
+            val tipos = buildList {
+                if (puede(Permiso.DECLARAR_ADUANA)) add("ADUANA")
+                if (puede(Permiso.DECLARAR_SAG)) add("SAG")
+            }
+            if (tipos.isNotEmpty()) {
+                NuevoItem(vm, datos, cruce.idCruce, tipos) { version++ }
+            } else {
+                cl.duoc.smcft.ui.componentes.AvisoSoloLectura("Las declaraciones las registran los funcionarios de Aduana y SAG.")
+            }
         }
     }
 }
 
 @Composable
-private fun NuevoItem(vm: SmcftViewModel, datos: Datos, idCruce: Long, alGuardar: () -> Unit) {
-    var tipo by remember { mutableStateOf("ADUANA") }
+private fun NuevoItem(vm: SmcftViewModel, datos: Datos, idCruce: Long, tipos: List<String>, alGuardar: () -> Unit) {
+    var tipo by remember { mutableStateOf(tipos.first()) }
     var categoria by remember { mutableStateOf(datos.categorias.firstOrNull()?.idCategoria) }
     var descripcion by remember { mutableStateOf("") }
     var cantidad by remember { mutableStateOf("1") }
@@ -249,8 +263,8 @@ private fun NuevoItem(vm: SmcftViewModel, datos: Datos, idCruce: Long, alGuardar
     val monto = valor.trim().replace(',', '.').toDoubleOrNull()
     val valido = categoria != null && descripcion.isNotBlank() && cant != null && cant > 0 && monto != null && monto >= 0
 
-    Tarjeta(titulo = "Agregar ítem declarado", icono = Icons.Outlined.ReceiptLong) {
-        Filtros(listOf("ADUANA", "SAG"), tipo, { it }, { tipo = it })
+    Tarjeta(titulo = "Agregar a la declaración", subtitulo = "Bienes que el viajero declara al cruzar", icono = Icons.Outlined.ReceiptLong) {
+        if (tipos.size > 1) Filtros(tipos, tipo, { legible(it) }, { tipo = it })
         Filtros(datos.categorias.map { it.idCategoria }, categoria ?: -1, { id -> legible(datos.categorias.first { it.idCategoria == id }.nombre) }, { categoria = it })
         Campo("Descripción", descripcion, { descripcion = it })
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -260,7 +274,7 @@ private fun NuevoItem(vm: SmcftViewModel, datos: Datos, idCruce: Long, alGuardar
         BotonPrincipal("Agregar a la declaración", habilitado = valido, guardando = guardando, icono = Icons.Outlined.Add, alPulsar = {
             guardando = true
             vm.ejecutar(
-                exito = { id: Long -> "Declaración #$id registrada" },
+                exito = { _: Long -> "Ítem agregado a la declaración" },
                 alTerminar = { ok ->
                     guardando = false
                     if (ok) {

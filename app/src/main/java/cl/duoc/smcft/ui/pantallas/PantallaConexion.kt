@@ -94,21 +94,20 @@ fun PantallaConexion(vm: SmcftViewModel, actuales: Ajustes) {
                 Campo("client_secret", secreto, { secreto = it }, icono = Icons.Outlined.Key, secreto = true)
                 Campo("ID de usuario para reportes", idUsuario, { idUsuario = it.filter(Char::isDigit) }, tipo = KeyboardType.Number,
                     ayuda = "ID_USUARIO que figura como generador (por defecto 1)")
-                OutlinedButton(
-                    onClick = {
+                cl.duoc.smcft.ui.componentes.Boton(
+                    "Probar conexión",
+                    alPulsar = {
                         probando = true
                         alcance.launch {
                             resultado = vm.probarConexion(nuevos)
                             probando = false
                         }
                     },
-                    enabled = !probando && url.isNotBlank() && urlValida,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Outlined.NetworkCheck, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (probando) "Probando…" else "Probar conexión")
-                }
+                    variante = cl.duoc.smcft.ui.componentes.VarianteBoton.CONTORNO,
+                    icono = Icons.Outlined.NetworkCheck,
+                    habilitado = url.isNotBlank() && urlValida,
+                    cargando = probando,
+                )
                 resultado?.let { r ->
                     r.onSuccess { Pildora(it, c.exito, c.exitoSuave) }
                     r.onFailure { Text(it.message ?: "Error", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
@@ -125,8 +124,9 @@ fun PantallaConexion(vm: SmcftViewModel, actuales: Ajustes) {
 
         if (actuales.modo == Modo.DEMO) {
             Tarjeta(titulo = "Datos de demostración", icono = Icons.Outlined.RestartAlt) {
-                Texto2("Vuelve a los datos iniciales del informe (Ana, Carlos, Sofía, Claudia, los pasos y vehículos de prueba). Se borra todo lo registrado.")
-                OutlinedButton(onClick = { confirmarReinicio = true }) { Text("Reiniciar datos de demostración") }
+                Texto2("Vuelve a los datos iniciales del informe y a las cuentas de prueba. Se borra todo lo registrado y se cierra la sesión.")
+                cl.duoc.smcft.ui.componentes.Boton("Reiniciar datos", { confirmarReinicio = true },
+                    variante = cl.duoc.smcft.ui.componentes.VarianteBoton.CONTORNO, icono = Icons.Outlined.RestartAlt)
             }
         }
 

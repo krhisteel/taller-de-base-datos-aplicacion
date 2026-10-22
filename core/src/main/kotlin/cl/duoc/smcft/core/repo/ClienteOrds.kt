@@ -65,15 +65,19 @@ class ClienteOrds(
      * POST/PUT/DELETE a un proceso. Siempre envía un cuerpo JSON (ORDS rechaza los cuerpos vacíos).
      * Devuelve el valor numérico de [resultado] (el ID creado o la cantidad de filas).
      */
-    fun proceso(metodo: String, ruta: String, cuerpo: Map<String, Any?> = emptyMap(), resultado: String): Long {
+    fun proceso(metodo: String, ruta: String, cuerpo: Map<String, Any?> = emptyMap(), resultado: String): Long =
+        procesoObjeto(metodo, ruta, cuerpo)[resultado]?.jsonPrimitive?.longOrNull
+            ?: throw ErrorConexion("La respuesta del servidor no trae '$resultado'.")
+
+    /** Igual que [proceso], pero devuelve todos los parámetros de salida. */
+    fun procesoObjeto(metodo: String, ruta: String, cuerpo: Map<String, Any?> = emptyMap()): JsonObject {
         val respuesta = parsear(solicitar(metodo, api(ruta), aJson(cuerpo))).jsonObject
         val codigo = respuesta["error_code"]?.jsonPrimitive?.longOrNull
         if (codigo != null && codigo != 0L) {
             val mensaje = respuesta["error_msg"]?.jsonPrimitive?.contentOrNull.orEmpty()
             throw SmcftException(codigo.toInt(), mensaje.substringAfter(": ", mensaje).trim())
         }
-        return respuesta[resultado]?.jsonPrimitive?.longOrNull
-            ?: throw ErrorConexion("La respuesta del servidor no trae '$resultado'.")
+        return respuesta
     }
 
     // ---------------------------------------------------------------- HTTP

@@ -28,5 +28,8 @@ PROMPT === Triggers ===
 PROMPT === Datos de prueba ===
 @@03_datos_prueba.sql
 
+PROMPT === Usuarios, roles e inicio de sesion ===
+@@04_usuarios_roles.sql
+
 PROMPT === Verificacion ===
 @@pruebas/08_verificar_compilacion.sql

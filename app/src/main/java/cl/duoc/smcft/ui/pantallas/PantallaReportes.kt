@@ -31,7 +31,9 @@ import cl.duoc.smcft.Ajustes
 import cl.duoc.smcft.SmcftViewModel
 import cl.duoc.smcft.core.repo.Datos
 import cl.duoc.smcft.core.repo.ReporteInfo
+import cl.duoc.smcft.core.seguridad.Permiso
 import cl.duoc.smcft.ui.coloresEstado
+import cl.duoc.smcft.ui.puede
 import cl.duoc.smcft.ui.componentes.BarraValor
 import cl.duoc.smcft.ui.componentes.BotonPrincipal
 import cl.duoc.smcft.ui.componentes.CampoFecha
@@ -57,10 +59,13 @@ fun PantallaReportes(vm: SmcftViewModel, datos: Datos, ajustes: Ajustes) {
     var generando by remember { mutableStateOf(false) }
     var abierto by remember { mutableStateOf(datos.reportes.firstOrNull()?.idReporte) }
 
+    val puedeGenerar = puede(Permiso.GENERAR_REPORTES)
+
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            Tarjeta(titulo = "Generar reporte", subtitulo = "Procedimiento SP_REPORTE_CRUCES", icono = Icons.Outlined.QueryStats) {
-                Texto2("Recorre los pasos activos con sus cruces y viajeros del período y guarda tres indicadores por paso.")
+        if (!puedeGenerar) item {
+            cl.duoc.smcft.ui.componentes.AvisoSoloLectura("Puede consultar los reportes. Los generan Aduana, supervisores y administradores.")
+        } else item {
+            Tarjeta(titulo = "Nuevo reporte", subtitulo = "Cruces, viajeros y montos de cada paso", icono = Icons.Outlined.QueryStats) {
                 Filtros(Rango.entries, rango, { it.texto }, {
                     rango = it
                     it.dias?.let { d -> desde = hoy.minusDays(d); hasta = hoy }
@@ -71,14 +76,14 @@ fun PantallaReportes(vm: SmcftViewModel, datos: Datos, ajustes: Ajustes) {
                 }
                 if (desde.isAfter(hasta)) {
                     Text(
-                        "La fecha inicial es posterior a la final: la validación privada validar_rango lo rechazará (error -20020).",
+                        "La fecha \"Desde\" debe ser anterior o igual a \"Hasta\".",
                         color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                BotonPrincipal("Generar reporte", icono = Icons.Outlined.PlayArrow, guardando = generando, alPulsar = {
+                BotonPrincipal("Generar reporte", icono = Icons.Outlined.PlayArrow, guardando = generando, habilitado = !desde.isAfter(hasta), alPulsar = {
                     generando = true
                     vm.ejecutar(
-                        exito = { id: Long -> abierto = id; "Reporte #$id generado" },
+                        exito = { id: Long -> abierto = id; "Reporte N° $id generado" },
                         alTerminar = { generando = false },
                     ) { generarReporte(desde, hasta, ajustes.idUsuarioReportes) }
                 })
@@ -109,7 +114,7 @@ private fun TarjetaReporte(r: ReporteInfo, abierto: Boolean, alPulsar: () -> Uni
             IconoCirculo(Icons.Outlined.Assessment, c.info, c.infoSuave)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("Reporte #${r.idReporte}", style = MaterialTheme.typography.titleSmall)
+                Text("Reporte N° ${r.idReporte}", style = MaterialTheme.typography.titleSmall)
                 Texto2(r.titulo)
             }
             ChipEstado(r.estado)

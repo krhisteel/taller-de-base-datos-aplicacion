@@ -131,6 +131,35 @@ class BaseDatos(
         modificar { it.copy(vehiculos = it.vehiculos + v) }
     }
 
+    @Synchronized
+    fun actualizarUsuario(idUsuario: Long, cambio: (Usuario) -> Usuario): Int = atomico {
+        var filas = 0
+        modificar { t -> t.copy(usuarios = t.usuarios.map { if (it.idUsuario == idUsuario) cambio(it).also { filas++ } else it }) }
+        filas
+    }
+
+    @Synchronized
+    fun insertarRol(r: Rol) = atomico {
+        unico(tablas.roles.any { it.idRol == r.idRol }, "ROL_PK")
+        unico(tablas.roles.any { it.nombreRol == r.nombreRol }, "ROL_NOMBRE_UN")
+        modificar { it.copy(roles = it.roles + r) }
+    }
+
+    @Synchronized
+    fun insertarUsuarioRol(ur: UsuarioRol) = atomico {
+        unico(tablas.usuarioRoles.any { it.idUsuarioRol == ur.idUsuarioRol }, "USUARIO_ROL_PK")
+        padre(existeUsuario(ur.idUsuario), "FK_USUARIO_ROL_USUARIO")
+        padre(tablas.roles.any { it.idRol == ur.idRol }, "FK_USUARIO_ROL_ROL")
+        modificar { it.copy(usuarioRoles = it.usuarioRoles + ur) }
+    }
+
+    @Synchronized
+    fun insertarIntentoLogin(i: IntentoLogin) = atomico {
+        unico(tablas.intentosLogin.any { it.idIntento == i.idIntento }, "LOGIN_ATTEMPT_PK")
+        i.idUsuario?.let { padre(existeUsuario(it), "FK_LOGIN_USUARIO") }
+        modificar { it.copy(intentosLogin = it.intentosLogin + i) }
+    }
+
     // ---------------------------------------------------------------- PASO / CRUCE
 
     @Synchronized

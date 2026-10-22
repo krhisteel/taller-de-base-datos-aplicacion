@@ -32,7 +32,9 @@ import androidx.compose.ui.unit.dp
 import cl.duoc.smcft.SmcftViewModel
 import cl.duoc.smcft.core.repo.Datos
 import cl.duoc.smcft.core.repo.PlazoInfo
+import cl.duoc.smcft.core.seguridad.Permiso
 import cl.duoc.smcft.ui.coloresEstado
+import cl.duoc.smcft.ui.puede
 import cl.duoc.smcft.ui.componentes.BotonPrincipal
 import cl.duoc.smcft.ui.componentes.ChipEstado
 import cl.duoc.smcft.ui.componentes.EstadoVacio
@@ -75,21 +77,25 @@ fun PantallaPlazos(vm: SmcftViewModel, datos: Datos) {
                     Icons.Outlined.EventAvailable, c.exito, c.exitoSuave, Modifier.weight(1f))
                 Indicador("Por vencer (≤30 días)", plazos.count { it.estado == "ACTIVO" && it.diasRestantes in 0..30 }.toString(),
                     Icons.Outlined.HourglassBottom, c.alerta, c.alertaSuave, Modifier.weight(1f))
-                Indicador("Vencidos (función)", datos.resumen.plazosVencidos.toString(),
+                Indicador("Vencidos", datos.resumen.plazosVencidos.toString(),
                     Icons.Outlined.EventBusy, c.peligro, c.peligroSuave, Modifier.weight(1f))
             }
         }
         item {
-            Tarjeta(titulo = "Admisión temporal de vehículos", subtitulo = "90 días para diplomáticos y 180 días para el resto", icono = Icons.Outlined.Schedule) {
-                Texto2("Los plazos se crean solos con el trigger TRG_CRUCE_PLAZO_AI al registrar la salida de un vehículo. " +
-                    "El procedimiento SP_ACTUALIZAR_PLAZOS marca como VENCIDO los plazos activos cuya fecha límite ya pasó.")
-                BotonPrincipal("Ejecutar SP_ACTUALIZAR_PLAZOS", icono = Icons.Outlined.Update, guardando = actualizando, alPulsar = {
-                    actualizando = true
-                    vm.ejecutar(
-                        exito = { n: Int -> if (n == 0) "No había plazos por actualizar" else "$n plazo(s) marcado(s) como VENCIDO" },
-                        alTerminar = { actualizando = false },
-                    ) { actualizarPlazos() }
-                })
+            Tarjeta(titulo = "Admisión temporal", subtitulo = "Diplomáticos: 90 días · Particulares: 180 días", icono = Icons.Outlined.Schedule) {
+                Texto2("Cuando un vehículo sale del país, el sistema crea su plazo automáticamente. " +
+                    "Si la fecha límite pasa, el plazo se marca como vencido al actualizar los estados.")
+                if (puede(Permiso.GESTIONAR_PLAZOS)) {
+                    BotonPrincipal("Actualizar estados", icono = Icons.Outlined.Update, guardando = actualizando, alPulsar = {
+                        actualizando = true
+                        vm.ejecutar(
+                            exito = { n: Int -> if (n == 0) "No había plazos por actualizar" else "Se marcaron $n plazo(s) como vencidos" },
+                            alTerminar = { actualizando = false },
+                        ) { actualizarPlazos() }
+                    })
+                } else {
+                    cl.duoc.smcft.ui.componentes.AvisoSoloLectura("La actualización de plazos la realiza Aduana o el administrador.")
+                }
             }
         }
         item { Filtros(FiltroPlazo.entries, filtro, { it.texto }, { filtro = it }) }
@@ -123,7 +129,7 @@ private fun FilaPlazo(p: PlazoInfo) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(legible(p.tipo), style = MaterialTheme.typography.titleSmall)
-                Texto2("Plazo #${p.idPlazo} · cruce #${p.idCruce}")
+                Texto2("Plazo N° ${p.idPlazo} · cruce N° ${p.idCruce}")
             }
             ChipEstado(p.estado)
         }

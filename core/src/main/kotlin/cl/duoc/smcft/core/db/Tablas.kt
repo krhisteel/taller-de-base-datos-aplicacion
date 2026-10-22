@@ -14,6 +14,9 @@ import kotlinx.serialization.Serializable
 data class Tablas(
     val personas: List<Persona> = emptyList(),
     val usuarios: List<Usuario> = emptyList(),
+    val roles: List<Rol> = emptyList(),
+    val usuarioRoles: List<UsuarioRol> = emptyList(),
+    val intentosLogin: List<IntentoLogin> = emptyList(),
     val vehiculos: List<Vehiculo> = emptyList(),
     val documentos: List<Documento> = emptyList(),
     val pasos: List<PasoFronterizo> = emptyList(),
@@ -47,4 +50,7 @@ object Secuencias {
     const val AUDITORIA = "SEQ_AUDITORIA"
     const val AUDITORIA_DET = "SEQ_AUDITORIA_DET"
     const val USUARIO = "SEQ_USUARIO"
+    const val ROL = "SEQ_ROL"
+    const val USUARIO_ROL = "SEQ_USUARIO_ROL"
+    const val LOGIN_ATTEMPT = "SEQ_LOGIN_ATTEMPT"
 }

@@ -41,6 +41,7 @@ private val OBJETOS = listOf(
     Objeto("TRG_CRUCE_PLAZO_AI", "Trigger de fila", "Crea el plazo de 90 o 180 días al registrar la salida de un vehículo."),
     Objeto("TRG_DOCUMENTO_AUDIT", "Trigger de fila", "Un detalle de auditoría por cada documento insertado, modificado o eliminado."),
     Objeto("TRG_DOCUMENTO_SENTENCIA", "Trigger de sentencia", "Una auditoría por cada instrucción sobre DOCUMENTO, sin importar cuántas filas afecte."),
+    Objeto("SP_INICIAR_SESION", "Procedimiento con parámetros", "Inicio de sesión: valida la contraseña (SHA-256) y registra cada intento en LOGIN_ATTEMPT."),
 )
 
 @Composable

@@ -2,6 +2,12 @@ package cl.duoc.smcft.core.repo
 
 import cl.duoc.smcft.core.DatosPrueba
 import cl.duoc.smcft.core.db.BaseDatos
+import cl.duoc.smcft.core.db.Errores
+import cl.duoc.smcft.core.db.SmcftException
+import cl.duoc.smcft.core.model.IntentoLogin
+import cl.duoc.smcft.core.seguridad.Seguridad
+import cl.duoc.smcft.core.seguridad.Sesion
+import cl.duoc.smcft.core.seguridad.TipoUsuario
 import cl.duoc.smcft.core.db.Secuencias
 import cl.duoc.smcft.core.model.AutorizacionMenor
 import cl.duoc.smcft.core.model.Documento
@@ -34,6 +40,49 @@ class RepositorioLocal(private val db: BaseDatos) : SmcftRepositorio {
         }
 
     private val t get() = db.tablas
+
+    // ---------------------------------------------------------------- sesión
+
+    override fun iniciarSesion(email: String, clave: String): Sesion {
+        val correo = email.trim().lowercase()
+        val usuario = t.usuarios.firstOrNull { it.email.equals(correo, ignoreCase = true) }
+        val valido = usuario != null && usuario.passwordHash == Seguridad.hash(correo, clave)
+
+        transaccion {
+            db.insertarIntentoLogin(IntentoLogin(db.nextval(Secuencias.LOGIN_ATTEMPT), usuario?.idUsuario, valido && usuario!!.activo, null, db.ahora()))
+        }
+        if (!valido) throw SmcftException(Errores.CREDENCIALES_INVALIDAS, "Correo o contraseña incorrectos.")
+        if (!usuario!!.activo) throw SmcftException(Errores.USUARIO_INACTIVO, "El usuario está desactivado.")
+
+        val persona = t.personas.firstOrNull { it.idPersona == usuario.idPersona }
+        return Sesion(usuario.idUsuario, persona?.nombreCompleto ?: usuario.email, usuario.email, TipoUsuario.desdeCodigo(rolDe(usuario.idUsuario)))
+    }
+
+    private fun rolDe(idUsuario: Long): String? =
+        t.usuarioRoles.filter { it.idUsuario == idUsuario && it.activo }
+            .firstNotNullOfOrNull { ur -> t.roles.firstOrNull { it.idRol == ur.idRol }?.nombreRol }
+
+    override fun usuarios() = t.usuarios.map { u ->
+        UsuarioInfo(
+            idUsuario = u.idUsuario,
+            nombre = t.personas.firstOrNull { it.idPersona == u.idPersona }?.nombreCompleto ?: "-",
+            email = u.email,
+            rol = rolDe(u.idUsuario) ?: "-",
+            activo = u.activo,
+            ultimoAcceso = t.intentosLogin.filter { it.idUsuario == u.idUsuario && it.exitoso }.maxOfOrNull { it.fechaIntento },
+        )
+    }.sortedBy { it.nombre }
+
+    override fun accesos() = t.intentosLogin.sortedByDescending { it.idIntento }.take(50).map { i ->
+        val u = i.idUsuario?.let { id -> t.usuarios.firstOrNull { it.idUsuario == id } }
+        AccesoInfo(
+            idIntento = i.idIntento,
+            email = u?.email,
+            nombre = u?.let { usr -> t.personas.firstOrNull { it.idPersona == usr.idPersona }?.nombreCompleto },
+            exitoso = i.exitoso,
+            fecha = i.fechaIntento,
+        )
+    }
 
     // ---------------------------------------------------------------- consultas
 

@@ -3,6 +3,9 @@ package cl.duoc.smcft.core.repo
 import cl.duoc.smcft.core.db.BaseDatos
 import cl.duoc.smcft.core.db.Errores
 import cl.duoc.smcft.core.db.SmcftException
+import cl.duoc.smcft.core.seguridad.Permiso
+import cl.duoc.smcft.core.seguridad.Seguridad
+import cl.duoc.smcft.core.seguridad.TipoUsuario
 import java.time.LocalDate
 import kotlin.random.Random
 import kotlin.test.Test
@@ -101,6 +104,37 @@ abstract class ContratoRepositorioTest {
         // INSERT + 2 UPDATE + UPDATE masivo (>= 1 fila) + DELETE
         assertTrue(detalles() - detallesAntes >= 5)
         assertEquals(sentenciasAntes + 5, sentencias())
+    }
+
+    @Test
+    fun `cada cuenta de prueba inicia sesion con su tipo de usuario`() {
+        for (cuenta in Seguridad.CUENTAS_PRUEBA) {
+            val sesion = repo.iniciarSesion(cuenta.email.uppercase(), cuenta.clave)
+            assertEquals(cuenta.tipo, sesion.tipo, cuenta.email)
+        }
+        val admin = repo.iniciarSesion("admin@smcft.cl", "Admin2026")
+        assertEquals("Claudia Salazar Vera", admin.nombre)
+        assertTrue(admin.puede(Permiso.ADMINISTRAR))
+        assertTrue(!repo.iniciarSesion("sag@smcft.cl", "Sag2026").puede(Permiso.REGISTRAR_CRUCE))
+    }
+
+    @Test
+    fun `credenciales incorrectas se rechazan y quedan registradas en LOGIN_ATTEMPT`() {
+        val antes = repo.accesos().firstOrNull()?.idIntento ?: 0
+        assertEquals(Errores.CREDENCIALES_INVALIDAS, assertFailsWith<SmcftException> { repo.iniciarSesion("pdi@smcft.cl", "incorrecta") }.codigo)
+        assertEquals(Errores.CREDENCIALES_INVALIDAS, assertFailsWith<SmcftException> { repo.iniciarSesion("nadie$sufijo@smcft.cl", "x") }.codigo)
+
+        val nuevos = repo.accesos().filter { it.idIntento > antes }
+        assertEquals(2, nuevos.size)
+        assertTrue(nuevos.none { it.exitoso })
+        assertTrue(nuevos.any { it.email == "pdi@smcft.cl" && it.nombre == "Marcela Rojas Diaz" })
+
+        repo.iniciarSesion("pdi@smcft.cl", "Pdi2026")
+        assertTrue(repo.accesos().first().exitoso)
+        val pdi = repo.usuarios().single { it.email == "pdi@smcft.cl" }
+        assertEquals(TipoUsuario.OFICIAL_PDI.codigo, pdi.rol)
+        assertTrue(pdi.ultimoAcceso != null)
+        assertTrue(repo.usuarios().map { it.rol }.containsAll(TipoUsuario.entries.map { it.codigo }))
     }
 
     @Test

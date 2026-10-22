@@ -56,7 +56,9 @@ import cl.duoc.smcft.SmcftViewModel
 import cl.duoc.smcft.core.repo.Datos
 import cl.duoc.smcft.core.repo.DocumentoInfo
 import cl.duoc.smcft.core.repo.NuevoDocumento
+import cl.duoc.smcft.core.seguridad.Permiso
 import cl.duoc.smcft.ui.coloresEstado
+import cl.duoc.smcft.ui.puede
 import cl.duoc.smcft.ui.componentes.BarraBusqueda
 import cl.duoc.smcft.ui.componentes.BotonPrincipal
 import cl.duoc.smcft.ui.componentes.Campo
@@ -90,6 +92,7 @@ fun PantallaDocumentos(vm: SmcftViewModel, datos: Datos) {
     var nuevo by remember { mutableStateOf(false) }
     var aEliminar by remember { mutableStateOf<DocumentoInfo?>(null) }
     var confirmarMasivo by remember { mutableStateOf(false) }
+    val gestiona = puede(Permiso.GESTIONAR_DOCUMENTOS)
 
     val hoy = LocalDate.now()
     val vencibles = datos.documentos.count { it.estado == "VIGENTE" && it.fechaVencimiento?.isBefore(hoy) == true }
@@ -112,16 +115,17 @@ fun PantallaDocumentos(vm: SmcftViewModel, datos: Datos) {
                 }
             }
             item {
-                Tarjeta(titulo = "Auditoría automática", subtitulo = "Cada cambio queda registrado por los triggers", icono = Icons.Outlined.FactCheck) {
-                    Texto2(
-                        "TRG_DOCUMENTO_AUDIT deja un detalle por documento afectado y TRG_DOCUMENTO_SENTENCIA una auditoría por instrucción. " +
-                            "Pruebe la actualización masiva: un solo UPDATE sobre varios documentos."
-                    )
-                    FilledTonalButton(onClick = { confirmarMasivo = true }) {
-                        Icon(Icons.Outlined.EventBusy, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Marcar vencidos ($vencibles)")
+                if (gestiona) {
+                    Tarjeta(titulo = "Documentos vencidos", subtitulo = "$vencibles vigente(s) con fecha de vencimiento pasada", icono = Icons.Outlined.FactCheck) {
+                        Texto2("Actualiza su estado de una sola vez. Cada cambio queda registrado en la auditoría.")
+                        cl.duoc.smcft.ui.componentes.Boton(
+                            "Marcar como vencidos ($vencibles)", { confirmarMasivo = true },
+                            variante = cl.duoc.smcft.ui.componentes.VarianteBoton.SECUNDARIO,
+                            icono = Icons.Outlined.EventBusy, habilitado = vencibles > 0,
+                        )
                     }
+                } else {
+                    cl.duoc.smcft.ui.componentes.AvisoSoloLectura("Los documentos los administran la PDI y el administrador.")
                 }
             }
             if (lista.isEmpty()) {
@@ -130,6 +134,7 @@ fun PantallaDocumentos(vm: SmcftViewModel, datos: Datos) {
             items(lista, key = { it.idDocumento }) { d ->
                 FilaDocumento(
                     d,
+                    gestiona = gestiona,
                     alCambiarEstado = { nuevoEstado ->
                         vm.ejecutar({ _: Int -> "Documento ${d.numero}: ${legible(nuevoEstado)}" }) { cambiarEstadoDocumento(d.idDocumento, nuevoEstado) }
                     },
@@ -137,12 +142,16 @@ fun PantallaDocumentos(vm: SmcftViewModel, datos: Datos) {
                 )
             }
         }
-        ExtendedFloatingActionButton(
-            onClick = { nuevo = true },
-            icon = { Icon(Icons.Outlined.Add, null) },
-            text = { Text("Nuevo documento") },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-        )
+        if (gestiona) {
+            ExtendedFloatingActionButton(
+                onClick = { nuevo = true },
+                icon = { Icon(Icons.Outlined.Add, null) },
+                text = { Text("Nuevo documento") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            )
+        }
     }
 
     if (nuevo) NuevoDocumentoHoja(vm, datos) { nuevo = false }
@@ -150,7 +159,7 @@ fun PantallaDocumentos(vm: SmcftViewModel, datos: Datos) {
     aEliminar?.let { d ->
         DialogoConfirmar(
             titulo = "¿Eliminar documento?",
-            mensaje = "Se eliminará ${legible(d.tipoDocumento)} ${d.numero} de ${d.titular}. El DELETE quedará registrado en la auditoría.",
+            mensaje = "Se eliminará ${legible(d.tipoDocumento)} ${d.numero} de ${d.titular}. La eliminación quedará registrada en la auditoría.",
             textoConfirmar = "Eliminar",
             peligroso = true,
             alConfirmar = { vm.ejecutar({ _: Int -> "Documento ${d.numero} eliminado" }) { eliminarDocumento(d.idDocumento) } },
@@ -160,17 +169,17 @@ fun PantallaDocumentos(vm: SmcftViewModel, datos: Datos) {
 
     if (confirmarMasivo) {
         DialogoConfirmar(
-            titulo = "Actualización masiva",
-            mensaje = "Un solo UPDATE marcará como VENCIDO los $vencibles documento(s) vigentes con fecha de vencimiento pasada.",
+            titulo = "¿Marcar documentos vencidos?",
+            mensaje = "Se marcarán como vencidos los $vencibles documento(s) vigentes cuya fecha de vencimiento ya pasó.",
             textoConfirmar = "Ejecutar",
-            alConfirmar = { vm.ejecutar({ n: Int -> "UPDATE masivo: $n documento(s) marcados como VENCIDO" }) { marcarDocumentosVencidos() } },
+            alConfirmar = { vm.ejecutar({ n: Int -> "Se marcaron $n documento(s) como vencidos" }) { marcarDocumentosVencidos() } },
             alCerrar = { confirmarMasivo = false },
         )
     }
 }
 
 @Composable
-private fun FilaDocumento(d: DocumentoInfo, alCambiarEstado: (String) -> Unit, alEliminar: () -> Unit) {
+private fun FilaDocumento(d: DocumentoInfo, gestiona: Boolean, alCambiarEstado: (String) -> Unit, alEliminar: () -> Unit) {
     val c = coloresEstado
     var menu by remember { mutableStateOf(false) }
     val vencido = d.fechaVencimiento?.isBefore(LocalDate.now()) == true
@@ -183,7 +192,7 @@ private fun FilaDocumento(d: DocumentoInfo, alCambiarEstado: (String) -> Unit, a
                 Texto2("N° ${d.numero} · ${d.titular}")
             }
             ChipEstado(d.estado)
-            Box {
+            if (gestiona) Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "Opciones") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     listOf(
@@ -254,7 +263,7 @@ private fun NuevoDocumentoHoja(vm: SmcftViewModel, datos: Datos, alCerrar: () ->
             Texto2("Tipo de documento")
             Filtros(tipos, tipo, { legible(it) }, { tipo = it })
             Campo("Número", numero, { numero = it.uppercase() }, icono = if (paraVehiculo) Icons.Outlined.DirectionsCar else Icons.Outlined.Person,
-                ayuda = "Debe ser único (DOCUMENTO_NUMERO_UN)")
+                ayuda = "Cada número de documento debe ser único")
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CampoFecha("Emisión", emision, { emision = it }, Modifier.weight(1f))
                 CampoFecha("Vencimiento", vencimiento, { vencimiento = it }, Modifier.weight(1f))

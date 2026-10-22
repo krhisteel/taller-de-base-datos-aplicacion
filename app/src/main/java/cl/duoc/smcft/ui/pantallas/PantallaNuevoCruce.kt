@@ -135,7 +135,7 @@ fun PantallaNuevoCruce(vm: SmcftViewModel, datos: Datos, alTerminar: () -> Unit)
             }
 
             // 4. Viajeros
-            Paso(4, "Viajeros", "Seleccione hasta $MAX_VIAJEROS. ${if (patente != null) "Toque la estrella para marcar al conductor." else ""}") {
+            Paso(4, "Viajeros", "Seleccione hasta $MAX_VIAJEROS personas. ${if (patente != null) "Toque la estrella para marcar al conductor." else ""}") {
                 BarraBusqueda(busqueda, { busqueda = it }, "Buscar por nombre o RUT")
                 datos.personas
                     .filter { busqueda.isBlank() || it.nombreCompleto.contains(busqueda, true) || it.rut.contains(busqueda, true) }
@@ -162,26 +162,26 @@ fun PantallaNuevoCruce(vm: SmcftViewModel, datos: Datos, alTerminar: () -> Unit)
             }
 
             // Resumen de lo que hará Oracle
-            Tarjeta(titulo = "Resumen", icono = Icons.Outlined.Info) {
+            Tarjeta(titulo = "Antes de confirmar", subtitulo = "Revise el resumen del registro", icono = Icons.Outlined.Info) {
                 val paso = datos.pasos.firstOrNull { it.idPaso == idPaso }?.nombre ?: "—"
                 Texto2("${legible(movimiento)} por $paso · ${if (vehiculo != null) "vehículo ${vehiculo.patente}" else "peatonal"} · ${viajeros.size} viajero(s)")
                 Aviso(
                     ok = viajeros.isNotEmpty(),
-                    texto = if (viajeros.isEmpty()) "Debe seleccionar al menos un viajero (error -20022)." else "Viajeros listos para registrar.",
+                    texto = if (viajeros.isEmpty()) "Seleccione al menos un viajero." else "${viajeros.size} viajero(s) listo(s) para registrar.",
                 )
                 if (menoresSinAutorizacion.isNotEmpty()) {
                     Aviso(
                         ok = false,
-                        texto = "${menoresSinAutorizacion.joinToString { it.nombres }} es menor sin autorización vigente: " +
-                            "sp_registrar_cruce rechazará el cruce (error -20002). Regístrela en Viajeros.",
+                        texto = "${menoresSinAutorizacion.joinToString { it.nombres }}: menor sin autorización de viaje. " +
+                            "El sistema no permitirá el cruce hasta registrar la autorización en Viajeros.",
                     )
                 }
                 if (vehiculo != null && movimiento == "SALIDA") {
                     val dias = if (vehiculo.tipoVehiculo == "DIPLOMATICO") 90 else 180
-                    Aviso(ok = true, texto = "El trigger TRG_CRUCE_PLAZO_AI creará un plazo de admisión temporal de $dias días.")
+                    Aviso(ok = true, texto = "Se creará automáticamente un plazo de admisión temporal de $dias días para el vehículo.")
                 }
                 if (vehiculo != null && conductor == null && viajeros.isNotEmpty()) {
-                    Aviso(ok = null, texto = "No marcó conductor: todos quedarán como acompañantes.")
+                    Aviso(ok = null, texto = "No marcó quién conduce: todos quedarán como acompañantes.")
                 }
             }
         }
@@ -196,7 +196,7 @@ fun PantallaNuevoCruce(vm: SmcftViewModel, datos: Datos, alTerminar: () -> Unit)
                 alPulsar = {
                     guardando = true
                     vm.ejecutar(
-                        exito = { id: Long -> "Cruce #$id registrado correctamente" },
+                        exito = { id: Long -> "Cruce N° $id registrado correctamente" },
                         alTerminar = { ok -> guardando = false; if (ok) alTerminar() },
                     ) { registrarCruce(idPaso!!, patente, movimiento, viajeros.toList(), conductor) }
                 },

@@ -1,5 +1,7 @@
 package cl.duoc.smcft.core.repo
 
+import cl.duoc.smcft.core.seguridad.Sesion
+import cl.duoc.smcft.core.seguridad.TipoUsuario
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Locale
@@ -12,6 +14,39 @@ class RepositorioOracle(private val cliente: ClienteOrds) : SmcftRepositorio {
 
     constructor(baseUrl: String, clientId: String, clientSecret: String) :
         this(ClienteOrds(baseUrl, clientId, clientSecret))
+
+    // ---------------------------------------------------------------- sesión
+
+    override fun iniciarSesion(email: String, clave: String): Sesion {
+        val r = cliente.procesoObjeto("POST", "auth/login", mapOf("email" to email.trim().lowercase(), "clave" to clave))
+        return Sesion(
+            idUsuario = r.entero("id_usuario"),
+            nombre = r.texto("nombre"),
+            email = email.trim().lowercase(),
+            tipo = TipoUsuario.desdeCodigo(r.textoONulo("rol")),
+        )
+    }
+
+    override fun usuarios() = cliente.lista("usuarios").map {
+        UsuarioInfo(
+            idUsuario = it.entero("id_usuario"),
+            nombre = it.texto("nombre"),
+            email = it.texto("email"),
+            rol = it.textoONulo("rol") ?: "-",
+            activo = it.texto("activo") == "S",
+            ultimoAcceso = it.fechaHora("ultimo_acceso"),
+        )
+    }
+
+    override fun accesos() = cliente.lista("accesos").map {
+        AccesoInfo(
+            idIntento = it.entero("id_intento"),
+            email = it.textoONulo("email"),
+            nombre = it.textoONulo("nombre"),
+            exitoso = it.texto("exitoso") == "S",
+            fecha = it.fechaHora("fecha_intento") ?: LocalDateTime.MIN,
+        )
+    }
 
     // ---------------------------------------------------------------- consultas
 

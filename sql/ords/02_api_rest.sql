@@ -77,6 +77,66 @@ BEGIN
 
     -- ======================================================================= consultas
 
+    -- POST auth/login: SP_INICIAR_SESION valida la contrasena y registra LOGIN_ATTEMPT.
+    -- El intento se confirma (COMMIT) aunque las credenciales sean incorrectas.
+    plantilla('auth/login');
+    ORDS.DEFINE_HANDLER(
+        p_module_name => c_modulo,
+        p_pattern     => 'auth/login',
+        p_method      => 'POST',
+        p_source_type => ORDS.source_type_plsql,
+        p_source      => q'[
+DECLARE
+    v_id        NUMBER;
+    v_nombre    VARCHAR2(201);
+    v_rol       VARCHAR2(50);
+    v_resultado VARCHAR2(20);
+BEGIN
+    SMCFT.SP_INICIAR_SESION(:email, :clave, v_id, v_nombre, v_rol, v_resultado);
+    COMMIT;
+    IF v_resultado = 'OK' THEN
+        :id_usuario := v_id;
+        :nombre := v_nombre;
+        :rol := v_rol;
+    ELSIF v_resultado = 'INACTIVO' THEN
+        :error_code := -20032;
+        :error_msg := 'ORA-20032: El usuario esta desactivado.';
+    ELSE
+        :error_code := -20031;
+        :error_msg := 'ORA-20031: Correo o contrasena incorrectos.';
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    ROLLBACK;
+    :error_code := SQLCODE;
+    :error_msg := SQLERRM;
+END;]');
+    salida('auth/login', 'POST', 'id_usuario', 'INT');
+    salida('auth/login', 'POST', 'nombre', 'STRING');
+    salida('auth/login', 'POST', 'rol', 'STRING');
+    salida('auth/login', 'POST', 'error_code', 'INT');
+    salida('auth/login', 'POST', 'error_msg', 'STRING');
+
+    consulta('usuarios', q'[
+        SELECT u.ID_USUARIO AS id_usuario, p.NOMBRES || ' ' || p.APELLIDOS AS nombre, u.EMAIL AS email,
+               (SELECT MIN(r.NOMBRE_ROL) FROM SMCFT.USUARIO_ROL ur JOIN SMCFT.ROL r ON r.ID_ROL = ur.ID_ROL
+                 WHERE ur.ID_USUARIO = u.ID_USUARIO AND ur.ACTIVO = 'S') AS rol,
+               u.ACTIVO AS activo,
+               (SELECT TO_CHAR(MAX(l.FECHA_INTENTO), 'YYYY-MM-DD"T"HH24:MI:SS') FROM SMCFT.LOGIN_ATTEMPT l
+                 WHERE l.ID_USUARIO = u.ID_USUARIO AND l.EXITOSO = 'S') AS ultimo_acceso
+          FROM SMCFT.USUARIO u
+          JOIN SMCFT.PERSONA p ON p.ID_PERSONA = u.ID_PERSONA
+         ORDER BY p.NOMBRES]');
+
+    consulta('accesos', q'[
+        SELECT l.ID_INTENTO AS id_intento, u.EMAIL AS email,
+               CASE WHEN p.ID_PERSONA IS NOT NULL THEN p.NOMBRES || ' ' || p.APELLIDOS END AS nombre,
+               l.EXITOSO AS exitoso, TO_CHAR(l.FECHA_INTENTO, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_intento
+          FROM SMCFT.LOGIN_ATTEMPT l
+          LEFT JOIN SMCFT.USUARIO u ON u.ID_USUARIO = l.ID_USUARIO
+          LEFT JOIN SMCFT.PERSONA p ON p.ID_PERSONA = u.ID_PERSONA
+         ORDER BY l.ID_INTENTO DESC
+         FETCH FIRST 50 ROWS ONLY]');
+
     consulta('resumen', q'[
         SELECT (SELECT COUNT(*) FROM SMCFT.PERSONA) AS personas,
                (SELECT COUNT(*) FROM SMCFT.VEHICULO) AS vehiculos,

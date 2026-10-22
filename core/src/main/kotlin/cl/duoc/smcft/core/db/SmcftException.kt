@@ -4,7 +4,7 @@ package cl.duoc.smcft.core.db
  * Equivalente a RAISE_APPLICATION_ERROR: lleva el mismo código de error que el PL/SQL
  * (-20001, -20002, -20004, -20020, ...) para que las pruebas y la interfaz lo puedan distinguir.
  */
-class SmcftException(val codigo: Int, mensaje: String) : RuntimeException("ORA$codigo: $mensaje")
+class SmcftException(val codigo: Int, val detalle: String) : RuntimeException("ORA$codigo: $detalle")
 
 object Errores {
     const val PLAZO_VENCIDO = -20001
@@ -15,6 +15,8 @@ object Errores {
     const val PLAZO_NO_EXISTE = -20006
     const val PERSONA_NO_EXISTE = -20010
     const val RANGO_INVALIDO = -20020
+    const val CREDENCIALES_INVALIDAS = -20031
+    const val USUARIO_INACTIVO = -20032
     const val MOVIMIENTO_INVALIDO = -20021
     const val SIN_VIAJEROS = -20022
 

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -399,7 +400,50 @@ fun CampoFecha(
     }
 }
 
-/** Botón principal que muestra un indicador mientras se guarda. */
+/** Variantes de botón: todas con la misma altura y forma para una interfaz consistente. */
+enum class VarianteBoton { PRIMARIO, SECUNDARIO, CONTORNO, PELIGRO }
+
+/** Botón estándar de la app. Muestra un indicador de progreso mientras [cargando]. */
+@Composable
+fun Boton(
+    texto: String,
+    alPulsar: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    variante: VarianteBoton = VarianteBoton.PRIMARIO,
+    icono: ImageVector? = null,
+    habilitado: Boolean = true,
+    cargando: Boolean = false,
+    compacto: Boolean = false,
+) {
+    val forma = MaterialTheme.shapes.medium
+    val alto = if (compacto) 42.dp else 52.dp
+    val relleno = PaddingValues(horizontal = if (compacto) 14.dp else 20.dp)
+    val contenido: @Composable RowScope.() -> Unit = {
+        when {
+            cargando -> CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = androidx.compose.material3.LocalContentColor.current)
+            icono != null -> Icon(icono, null, Modifier.size(if (compacto) 18.dp else 20.dp))
+        }
+        if (cargando || icono != null) Spacer(Modifier.width(8.dp))
+        Text(texto, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    val activo = habilitado && !cargando
+    when (variante) {
+        VarianteBoton.PRIMARIO -> Button(alPulsar, modifier.height(alto), activo, forma, contentPadding = relleno, content = contenido)
+        VarianteBoton.SECUNDARIO -> androidx.compose.material3.FilledTonalButton(alPulsar, modifier.height(alto), activo, forma, contentPadding = relleno, content = contenido)
+        VarianteBoton.CONTORNO -> androidx.compose.material3.OutlinedButton(
+            alPulsar, modifier.height(alto), activo, forma,
+            border = BorderStroke(1.dp, if (activo) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant),
+            contentPadding = relleno, content = contenido,
+        )
+        VarianteBoton.PELIGRO -> Button(
+            alPulsar, modifier.height(alto), activo, forma,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
+            contentPadding = relleno, content = contenido,
+        )
+    }
+}
+
+/** Botón principal de ancho completo (atajo de [Boton]). */
 @Composable
 fun BotonPrincipal(
     texto: String,
@@ -408,21 +452,32 @@ fun BotonPrincipal(
     habilitado: Boolean = true,
     guardando: Boolean = false,
     icono: ImageVector? = null,
-) {
-    Button(
-        onClick = alPulsar,
-        enabled = habilitado && !guardando,
-        modifier = modifier.height(52.dp),
-        shape = MaterialTheme.shapes.medium,
-        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+) = Boton(texto, alPulsar, modifier, VarianteBoton.PRIMARIO, icono, habilitado, guardando)
+
+/** Aviso para quien puede consultar una sección, pero no modificarla. */
+@Composable
+fun AvisoSoloLectura(texto: String = "Su perfil puede consultar esta sección, pero no modificarla.") {
+    val c = coloresEstado
+    Row(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(c.neutroSuave).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (guardando) {
-            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-        } else if (icono != null) {
-            Icon(icono, null, Modifier.size(20.dp))
-        }
-        Spacer(Modifier.width(8.dp))
-        Text(texto)
+        Icon(androidx.compose.material.icons.Icons.Outlined.Visibility, null, tint = c.neutro, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(texto, style = MaterialTheme.typography.bodySmall, color = c.neutro)
+    }
+}
+
+/** Mensaje destacado (información, advertencia o error). */
+@Composable
+fun Aviso(texto: String, icono: ImageVector, color: Color, fondo: Color, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(fondo).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icono, null, tint = color, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(texto, style = MaterialTheme.typography.bodyMedium, color = color)
     }
 }
 

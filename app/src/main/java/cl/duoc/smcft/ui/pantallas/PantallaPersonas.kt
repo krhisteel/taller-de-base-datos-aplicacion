@@ -46,7 +46,9 @@ import cl.duoc.smcft.SmcftViewModel
 import cl.duoc.smcft.core.repo.Datos
 import cl.duoc.smcft.core.repo.NuevaPersona
 import cl.duoc.smcft.core.repo.PersonaInfo
+import cl.duoc.smcft.core.seguridad.Permiso
 import cl.duoc.smcft.ui.coloresEstado
+import cl.duoc.smcft.ui.puede
 import cl.duoc.smcft.ui.componentes.Avatar
 import cl.duoc.smcft.ui.componentes.BarraBusqueda
 import cl.duoc.smcft.ui.componentes.BotonPrincipal
@@ -84,6 +86,7 @@ fun PantallaPersonas(vm: SmcftViewModel, datos: Datos) {
     var filtro by rememberSaveable { mutableStateOf(FiltroPersona.TODOS) }
     var nueva by remember { mutableStateOf(false) }
     var autorizar by remember { mutableStateOf<PersonaInfo?>(null) }
+    val gestiona = puede(Permiso.GESTIONAR_PERSONAS)
 
     val lista = datos.personas
         .filter {
@@ -106,14 +109,18 @@ fun PantallaPersonas(vm: SmcftViewModel, datos: Datos) {
                 }
             }
             if (lista.isEmpty()) item { EstadoVacio(Icons.Outlined.SearchOff, "Sin resultados", "No hay personas que coincidan con la búsqueda.") }
-            items(lista, key = { it.idPersona }) { p -> FilaPersona(p) { autorizar = p } }
+            items(lista, key = { it.idPersona }) { p -> FilaPersona(p, gestiona) { autorizar = p } }
         }
-        ExtendedFloatingActionButton(
-            onClick = { nueva = true },
-            icon = { Icon(Icons.Outlined.PersonAdd, null) },
-            text = { Text("Nueva persona") },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-        )
+        if (gestiona) {
+            ExtendedFloatingActionButton(
+                onClick = { nueva = true },
+                icon = { Icon(Icons.Outlined.PersonAdd, null) },
+                text = { Text("Nueva persona") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            )
+        }
     }
 
     if (nueva) NuevaPersonaHoja(vm) { nueva = false }
@@ -121,7 +128,7 @@ fun PantallaPersonas(vm: SmcftViewModel, datos: Datos) {
 }
 
 @Composable
-private fun FilaPersona(p: PersonaInfo, alAutorizar: () -> Unit) {
+private fun FilaPersona(p: PersonaInfo, gestiona: Boolean, alAutorizar: () -> Unit) {
     val c = coloresEstado
     Tarjeta(relleno = 14.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -141,8 +148,9 @@ private fun FilaPersona(p: PersonaInfo, alAutorizar: () -> Unit) {
                 else -> Pildora("Menor sin autorización", c.peligro, c.peligroSuave, Icons.Outlined.ChildCare)
             }
             Spacer(Modifier.weight(1f))
-            if (p.esMenor && !p.autorizacionVigente) {
-                FilledTonalButton(onClick = alAutorizar) { Text("Autorizar") }
+            if (gestiona && p.esMenor && !p.autorizacionVigente) {
+                cl.duoc.smcft.ui.componentes.Boton("Autorizar", alAutorizar, Modifier,
+                    cl.duoc.smcft.ui.componentes.VarianteBoton.SECUNDARIO, compacto = true)
             }
         }
     }
@@ -211,7 +219,7 @@ private fun AutorizacionHoja(vm: SmcftViewModel, datos: Datos, menor: PersonaInf
                     Texto2("${menor.edad} años · RUT ${menor.rut}")
                 }
             }
-            Texto2("Se registrará el documento notarial y una AUTORIZACION_MENOR en estado VIGENTE.")
+            Texto2("Se registrará el documento notarial y la autorización quedará vigente por un año.")
             Texto2("Representante")
             Filtros(adultos.map { it.idPersona }, representante ?: -1, { id -> adultos.first { it.idPersona == id }.nombreCompleto }, { representante = it })
             Campo("N° documento notarial", numero, { numero = it.uppercase() }, icono = Icons.Outlined.Gavel)

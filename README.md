@@ -8,6 +8,22 @@ La app lleva a Kotlin la capa de procesamiento PL/SQL del informe: el package `P
 los procedimientos y funciones independientes y los tres triggers, sobre una base de datos local
 con el mismo modelo de tablas del esquema `SMCFT`.
 
+## Inicio de sesión y tipos de usuario
+
+La app pide iniciar sesión. Cada tipo de usuario ve solo las acciones de su perfil (los permisos están en
+`core/.../seguridad/Seguridad.kt`). Todos pueden consultar cruces, plazos y documentos.
+
+| Perfil | Correo | Contraseña | Puede |
+|---|---|---|---|
+| Administrador | admin@smcft.cl | Admin2026 | Todo, incluidos usuarios y conexión |
+| Oficial PDI | pdi@smcft.cl | Pdi2026 | Registrar cruces, viajeros, autorizaciones y documentos |
+| Funcionario de Aduana | aduana@smcft.cl | Aduana2026 | Declaraciones de Aduana, vehículos, plazos y reportes |
+| Inspector SAG | sag@smcft.cl | Sag2026 | Declaraciones SAG |
+| Supervisor | supervisor@smcft.cl | Super2026 | Reportes y auditoría |
+
+Las contraseñas se guardan como hash SHA-256 en `USUARIO.PASSWORD_HASH` y cada intento queda en `LOGIN_ATTEMPT`
+(procedimiento `SP_INICIAR_SESION` en `sql/04_usuarios_roles.sql`).
+
 ## Funcionalidades
 
 La app tiene una barra inferior con cinco secciones y pantallas adicionales en **Más**:
@@ -22,9 +38,12 @@ La app tiene una barra inferior con cinco secciones y pantallas adicionales en *
 | Reportes | Rangos rápidos o calendario y gráficos por paso | `SP_REPORTE_CRUCES` + `validar_rango` |
 | Auditoría | Línea de tiempo de los cambios, por documento (fila) y por instrucción (sentencia) | `AUDITORIA`, `AUDITORIA_DETALLE` |
 | Viajeros / Vehículos | Registro con validación de RUT y patente, y autorizaciones de menores | `PERSONA`, `VEHICULO`, `AUTORIZACION_MENOR` |
-| Conexión | Elegir entre modo demostración y Oracle Cloud (ORDS) | — |
+| Usuarios y accesos | Cuentas con su perfil y registro de inicios de sesión (solo administrador) | `USUARIO`, `ROL`, `USUARIO_ROL`, `LOGIN_ATTEMPT` |
+| Mi cuenta | Perfil del usuario y lista de lo que puede hacer | — |
+| Conexión | Elegir entre modo demostración y Oracle Cloud (ORDS) (solo administrador) | — |
 
-Diseño Material 3 con tema propio (claro y oscuro), ícono de la app, animaciones, "deslizar para actualizar" y mensajes con el error de Oracle (por ejemplo `ORA-20002`) cuando una regla rechaza una operación.
+Diseño Material 3 con paleta institucional (claro y oscuro), ícono propio, botones consistentes, animaciones y
+"deslizar para actualizar". Cada pantalla tiene una descripción y un botón **?** que explica cómo se usa.
 
 ### Modos de datos
 
