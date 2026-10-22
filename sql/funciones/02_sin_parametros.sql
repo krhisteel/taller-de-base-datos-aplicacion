@@ -1,0 +1,6 @@
+-- funciones/02_sin_parametros.sql (Anexo de codigo 8)
+CREATE OR REPLACE FUNCTION SMCFT.FN_TOTAL_PLAZOS_VENCIDOS RETURN NUMBER AS
+BEGIN
+    RETURN SMCFT.PKG_GESTION_FRONTERA.fn_total_plazos_vencidos;
+END;
+/

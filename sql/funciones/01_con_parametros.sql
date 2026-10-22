@@ -1,0 +1,6 @@
+-- funciones/01_con_parametros.sql (Anexo de codigo 7)
+CREATE OR REPLACE FUNCTION SMCFT.FN_VALOR_DECLARADO(p_cruce NUMBER) RETURN NUMBER AS
+BEGIN
+    RETURN SMCFT.PKG_GESTION_FRONTERA.fn_valor_total_declarado(p_cruce);
+END;
+/

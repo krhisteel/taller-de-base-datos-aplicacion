@@ -10,25 +10,33 @@ con el mismo modelo de tablas del esquema `SMCFT`.
 
 ## Funcionalidades
 
+La app tiene una barra inferior con cinco secciones y pantallas adicionales en **Más**:
+
 | Pantalla | Qué hace | Objeto del informe |
 |---|---|---|
-| Inicio | Resumen del sistema y acceso rápido | `FN_TOTAL_PLAZOS_VENCIDOS`, `SP_ACTUALIZAR_PLAZOS` |
-| Registrar cruce | Cruce peatonal o vehicular con sus viajeros y conductor; valida vehículo, RUT y autorización de menores | `sp_registrar_cruce` |
-| Cruces y declaraciones | Detalle de cada cruce, ítems declarados (Aduana/SAG) y valor en USD | `FN_VALOR_DECLARADO` |
-| Plazos de admisión | Plazos de 90 días (diplomáticos) o 180 días, días restantes y vencidos | `TRG_CRUCE_PLAZO_AI`, `SP_ACTUALIZAR_PLAZOS` |
-| Reportes | Cruces, viajeros y USD declarados por paso en un rango de fechas | `SP_REPORTE_CRUCES` + `validar_rango` (privado) |
-| Documentos | Alta, cambio de estado, actualización masiva y eliminación | `TRG_DOCUMENTO_AUDIT`, `TRG_DOCUMENTO_SENTENCIA` |
-| Auditoría | Auditoría por documento (fila) y por instrucción (sentencia) | tablas `AUDITORIA` y `AUDITORIA_DETALLE` |
-| Personas y vehículos | Registro de viajeros, vehículos y autorizaciones notariales de menores | `PERSONA`, `VEHICULO`, `AUTORIZACION_MENOR` |
+| Inicio | Panel con indicadores, alertas de plazos, gráfico de cruces por paso y últimos cruces | `FN_TOTAL_PLAZOS_VENCIDOS`, `SP_ACTUALIZAR_PLAZOS` |
+| Cruces | Búsqueda, filtros y detalle de cada cruce (viajeros, ítems declarados) con formulario de declaración | `FN_VALOR_DECLARADO` |
+| Registrar cruce | Formulario guiado en 4 pasos con vista previa de lo que harán el package y el trigger | `sp_registrar_cruce`, `TRG_CRUCE_PLAZO_AI` |
+| Plazos | Plazos de 90/180 días con barra de avance, filtros y actualización de estados | `TRG_CRUCE_PLAZO_AI`, `SP_ACTUALIZAR_PLAZOS` |
+| Documentos | Alta, cambio de estado, eliminación y actualización masiva | `TRG_DOCUMENTO_AUDIT`, `TRG_DOCUMENTO_SENTENCIA` |
+| Reportes | Rangos rápidos o calendario y gráficos por paso | `SP_REPORTE_CRUCES` + `validar_rango` |
+| Auditoría | Línea de tiempo de los cambios, por documento (fila) y por instrucción (sentencia) | `AUDITORIA`, `AUDITORIA_DETALLE` |
+| Viajeros / Vehículos | Registro con validación de RUT y patente, y autorizaciones de menores | `PERSONA`, `VEHICULO`, `AUTORIZACION_MENOR` |
+| Conexión | Elegir entre modo demostración y Oracle Cloud (ORDS) | — |
 
-Los datos iniciales son los de `03_datos_prueba.sql`: Ana, Carlos, Sofía (menor con autorización), Claudia
-(usuario técnico 1), los pasos Los Libertadores y Cardenal Samoré y los vehículos `ABCD12` (particular) y
-`XX999Z` (diplomático).
+Diseño Material 3 con tema propio (claro y oscuro), ícono de la app, animaciones, "deslizar para actualizar" y mensajes con el error de Oracle (por ejemplo `ORA-20002`) cuando una regla rechaza una operación.
+
+### Modos de datos
+
+- **Modo demostración** (por defecto): los datos se guardan en el teléfono con las mismas reglas del informe. Funciona sin internet.
+- **Oracle Cloud**: la app usa el esquema SMCFT real mediante ORDS. El package, los procedimientos, las funciones y los triggers se ejecutan en Oracle. Ver [`sql/README.md`](sql/README.md).
 
 ## Estructura
 
 ```
+sql/    Scripts Oracle del informe (tablas, package, procedimientos, funciones, triggers, pruebas) y API ORDS
 core/   Módulo Kotlin puro (sin Android): modelo, base de datos, package, triggers y pruebas
+  repo/SmcftRepositorio.kt       Operaciones de la app; RepositorioLocal (demo) y RepositorioOracle (ORDS)
   model/Modelos.kt               Tablas del esquema SMCFT (01_tablas.sql)
   db/BaseDatos.kt                Secuencias, SAVEPOINT/ROLLBACK/COMMIT, PK/UNIQUE/FK/CHECK
   db/Triggers.kt                 TRG_CRUCE_PLAZO_AI, TRG_DOCUMENTO_AUDIT, TRG_DOCUMENTO_SENTENCIA
@@ -76,9 +84,7 @@ app/    App Android con Jetpack Compose (Material 3)
 | 07 Validación privada | Un rango invertido se rechaza con `-20020` |
 | Casos de error | Menor sin autorización (-20002), vehículo inexistente (-20004), RUT no registrado (-20010) |
 
-## Diferencias con la versión Oracle
+## Notas
 
-- La app no se conecta a Oracle Cloud: trabaja con una base local que tiene las mismas tablas y reglas.
-  Conectarla a Oracle requeriría un backend (por ejemplo, una API REST) entre la app y la base.
 - `sp_reporte_cruces_por_paso` lanza `-20005` cuando no hay pasos activos. En el PL/SQL ese manejador
   existe, pero nunca se alcanza.

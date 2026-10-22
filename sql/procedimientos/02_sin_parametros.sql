@@ -1,0 +1,6 @@
+-- procedimientos/02_sin_parametros.sql (Anexo de codigo 6)
+CREATE OR REPLACE PROCEDURE SMCFT.SP_ACTUALIZAR_PLAZOS AS
+BEGIN
+    SMCFT.PKG_GESTION_FRONTERA.sp_actualizar_plazos_vencidos;
+END;
+/

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Barrera de paso fronterizo con flechas de entrada y salida -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- poste -->
+    <path android:fillColor="#FFFFFF" android:pathData="M33,38h6v34h-6z" />
+    <!-- base -->
+    <path android:fillColor="#FFFFFF" android:pathData="M29,70h14v4h-14z" />
+    <!-- barrera con franjas -->
+    <path android:fillColor="#FFFFFF" android:pathData="M39,40h40a3,3 0,0 1,0 6h-40z" />
+    <path android:fillColor="#E8485C" android:pathData="M47,40h7v6h-7zM61,40h7v6h-7zM75,40h4a3,3 0,0 1,0 6h-4z" />
+    <!-- flecha de entrada -->
+    <path android:fillColor="#7BD8A6" android:pathData="M48,55h20v-4l8,7l-8,7v-4h-20z" />
+    <!-- flecha de salida -->
+    <path android:fillColor="#FFC27A" android:pathData="M76,70h-20v4l-8,-7l8,-7v4h20z" />
+</vector>
